@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#8B4513">
+<meta name="description" content="Ben-Couture - Gestion des commandes, clients et stock">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ben-Couture | Atelier de Couture</title>
+<!-- Preconnect fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- Firebase : defer ne bloque pas le rendu HTML -->
+<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<!-- Loader lazy pour Chart.js et html2pdf -->
+<script>
+function loadScript(url,cb){var s=document.createElement('script');s.src=url;s.onload=cb||function(){};document.head.appendChild(s);}
+function ensureChartJs(cb){if(window.Chart){cb();return;}loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',cb);}
+function ensureHtml2pdf(cb){if(window.html2pdf){cb();return;}loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',cb);}
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #8B4513;
+  --primary-light: #A0522D;
+  --secondary: #D4A843;
+  --dark: #2C1810;
+  --light: #FAF6EE;
+  --gray: #6B4C3B;
+  --success: #2D6A4F;
+  --danger: #C0392B;
+  --info: #2980B9;
+  --border: #E8D5BF;
+  --card: #FFFFFF;
+}
+body {
+  font-family: 'Poppins', sans-serif;
+  background: var(--light);
+  color: var(--dark);
+  transition: all 0.3s ease;
+}
+body.dark {
+  --light: #1a1a2e;
+  --card: #16213e;
+  --dark: #eee;
+  --gray: #aaa;
+  --border: #2c3e50;
+  background: #0f0f1a;
+  color: #eee;
+}
+.container { max-width: 500px; margin: 0 auto; background: var(--light); min-height: 100vh; position: relative; }
+/* Header */
+.header { background: linear-gradient(135deg, var(--primary), var(--primary-light)); padding: 20px; position: sticky; top: 0; z-index: 100; }
+.logo-area { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.logo-text h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--secondary); }
+.logo-text p { font-size: 10px; color: rgba(255,255,255,0.8); letter-spacing: 2px; }
+.stats { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap; }
+.stat-pill { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; font-size: 12px; color: white; }
+.stat-pill strong { color: var(--secondary); }
+/* Navigation */
+.nav { display: flex; background: var(--card); border-bottom: 2px solid var(--border); overflow-x: auto; position: sticky; top: 100px; z-index: 99; }
+.nav-btn { flex: 1; min-width: 70px; padding: 12px 5px; background: none; border: none; font-size: 11px; font-weight: 500; color: var(--gray); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.nav-btn i { font-size: 18px; }
+.nav-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--light); }
+/* Sections */
+.section { display: none; padding: 16px; }
+.section.active { display: block; }
+/* Cards */
+.card { background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+/* Badges */
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+.badge-attente { background: #FFF3CD; color: #856404; }
+.badge-cours { background: #D1ECF1; color: #0C5460; }
+.badge-pret { background: #D4EDDA; color: #155724; }
+.badge-livre { background: #E2E3E5; color: #383D41; }
+body.dark .badge-attente { background: #665c00; color: #ffd700; }
+body.dark .badge-cours { background: #004d66; color: #7fffd4; }
+body.dark .badge-pret { background: #1b5e2a; color: #90ee90; }
+body.dark .badge-livre { background: #3e3e3e; color: #ccc; }
+/* Buttons */
+.btn { padding: 8px 12px; border-radius: 10px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+.btn:active { transform: scale(0.96); }
+.btn-whatsapp { background: #25D366; color: white; }
+.btn-primary { background: var(--primary); color: white; padding: 12px 20px; width: 100%; margin-top: 8px; border-radius: 12px; font-size: 14px; border: none; cursor: pointer; }
+.btn-secondary { background: var(--gray); color: white; }
+/* FAB */
+.fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 20px rgba(139,69,19,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+/* Modals */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; align-items: flex-end; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card); border-radius: 24px 24px 0 0; padding: 24px 20px; width: 100%; max-width: 500px; margin: 0 auto; max-height: 85vh; overflow-y: auto; }
+.modal-title { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 20px; text-align: center; }
+/* Forms */
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--gray); text-transform: uppercase; margin-bottom: 5px; display: block; }
+.form-input, .form-select, .form-textarea { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'Poppins', sans-serif; font-size: 14px; background: var(--light); color: var(--dark); outline: none; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Mensurations Grid */
+.mesures-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.mesure-item { background: var(--light); padding: 6px; border-radius: 8px; text-align: center; font-size: 11px; }
+.mesure-item strong { display: block; color: var(--primary); font-size: 14px; }
+/* Gallery & Video */
+.gallery-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.gallery-item { position: relative; border-radius: 12px; overflow: hidden; aspect-ratio: 1/1; cursor: pointer; }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+.video-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.video-card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.video-card video { width: 100%; max-height: 250px; }
+.music-player { background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.music-player input { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid var(--border); background: var(--light); }
+/* Dashboard Photos */
+.photos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+.photo-card { border-radius: 12px; overflow: hidden; aspect-ratio: 1/1; }
+.photo-card img { width: 100%; height: 100%; object-fit: cover; }
+/* Toggle Dark Mode */
+.dark-toggle { position: fixed; bottom: 90px; left: 24px; width: 48px; height: 48px; border-radius: 50%; background: var(--card); border: 2px solid var(--primary); color: var(--primary); font-size: 20px; cursor: pointer; z-index: 200; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; }
+/* Charts */
+.chart-container { background: var(--card); padding: 15px; border-radius: 16px; margin-bottom: 15px; }
+/* Toast */
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 10px 20px; border-radius: 30px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+/* Scroll TikTok */
+.scroll-container { height: 500px; overflow-y: auto; scroll-snap-type: y mandatory; border-radius: 16px; }
+.scroll-item { scroll-snap-align: start; height: 500px; display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+.scroll-item img { width: 100%; height: 100%; object-fit: contain; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-area">
+      <div class="logo-icon">✂️</div>
+      <div class="logo-text">
+        <h1>BEN-COUTURE</h1>
+        <p>ATELIER D'EXCELLENCE</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-pill">📦 <strong id="stat-commandes">0</strong> commandes</div>
+      <div class="stat-pill">👥 <strong id="stat-clients">0</strong> clients</div>
+      <div class="stat-pill">💰 <strong id="stat-revenue">0</strong> FCFA</div>
+      <div class="stat-pill" id="sync-status">☁️ Local</div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="nav">
+    <button class="nav-btn active" onclick="showSection('dashboard')"><i class="fas fa-home"></i>Accueil</button>
+    <button class="nav-btn" onclick="showSection('commandes')"><i class="fas fa-clipboard-list"></i>Commandes</button>
+    <button class="nav-btn" onclick="showSection('clients')"><i class="fas fa-users"></i>Clients</button>
+    <button class="nav-btn" onclick="showSection('stock')"><i class="fas fa-boxes"></i>Stock</button>
+    <button class="nav-btn" onclick="showSection('tv')"><i class="fas fa-tv"></i>TV Ben</button>
+    <button class="nav-btn" onclick="showSection('stats')"><i class="fas fa-chart-line"></i>Stats</button>
+  </div>
+
+  <!-- SECTION DASHBOARD -->
+  <div class="section active" id="section-dashboard">
+    <div class="card">
+      <h3 style="color: var(--primary);">✨ Nos Créations Phares</h3>
+      <div class="photos-grid" id="dashboard-photos"></div>
+    </div>
+    <div class="dashboard-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="dash-en-cours">0</div><div>En cours</div></div>
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="dash-prets">0</div><div>Prêts</div></div>
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="dash-mois">0</div><div>Ce mois</div></div>
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--success);" id="dash-fcfa">0</div><div>FCFA encaissés</div></div>
+    </div>
+    <div class="card">
+      <h3>🔔 À faire aujourd'hui</h3>
+      <div id="todo-list"></div>
+    </div>
+    <button class="btn-primary" onclick="syncWithCloud()"><i class="fas fa-cloud-upload-alt"></i> Synchroniser avec le cloud</button>
+    <button class="btn-primary" style="background: var(--success); margin-top: 10px;" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Exporter rapport PDF</button>
+  </div>
+
+  <!-- SECTION COMMANDES (similaire à avant mais avec WhatsApp signature) -->
+  <div class="section" id="section-commandes">
+    <div class="filter-row" id="filter-row" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px;">
+      <button class="filter-btn active" onclick="filterCommandes('tous')">Tous</button>
+      <button class="filter-btn" onclick="filterCommandes('attente')">Attente</button>
+      <button class="filter-btn" onclick="filterCommandes('cours')">En cours</button>
+      <button class="filter-btn" onclick="filterCommandes('pret')">Prêt</button>
+      <button class="filter-btn" onclick="filterCommandes('livre')">Livré</button>
+    </div>
+    <div id="commandes-list"></div>
+  </div>
+
+  <!-- SECTION CLIENTS avec mensurations séparées -->
+  <div class="section" id="section-clients">
+    <div id="clients-list"></div>
+    <button class="fab" style="position: relative; margin-top: 10px; width: 100%; border-radius: 12px;" onclick="openModalClient()">+ Nouveau client</button>
+  </div>
+
+  <!-- SECTION STOCK -->
+  <div class="section" id="section-stock">
+    <div id="stock-list"></div>
+    <button class="btn-primary" onclick="openModalStock()">+ Ajouter au stock</button>
+  </div>
+
+  <!-- SECTION TV BEN-COUTURE -->
+  <div class="section" id="section-tv">
+    <div class="music-player">
+      <i class="fas fa-music"></i>
+      <input type="text" id="music-url" placeholder="URL musique MP3 (optionnel)" value="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3">
+      <button class="btn btn-primary" onclick="playMusic()"><i class="fas fa-play"></i></button>
+      <button class="btn btn-secondary" onclick="stopMusic()"><i class="fas fa-stop"></i></button>
+    </div>
+    <div class="section-title" style="font-weight: bold; margin-bottom: 10px;">📹 Vidéos des modèles</div>
+    <div class="video-grid" id="videos-list"></div>
+    <div class="section-title" style="font-weight: bold; margin: 15px 0 10px;">📸 Galerie TikTok Style</div>
+    <div class="scroll-container" id="gallery-scroll"></div>
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+      <button class="btn btn-primary" onclick="startAutoScroll()"><i class="fas fa-play"></i> Auto-scroll</button>
+      <button class="btn btn-secondary" onclick="stopAutoScroll()"><i class="fas fa-stop"></i> Stop</button>
+    </div>
+    <button class="btn-primary" onclick="openModalMedia()" style="margin-top: 15px;">+ Ajouter vidéo/photo</button>
+  </div>
+
+  <!-- SECTION STATISTIQUES -->
+  <div class="section" id="section-stats">
+    <div class="chart-container"><canvas id="monthChart"></canvas></div>
+    <div class="chart-container"><canvas id="statusChart"></canvas></div>
+    <div class="card"><h3>📊 Top clients</h3><div id="top-clients"></div></div>
+    <div class="card"><h3>🏆 Articles populaires</h3><div id="top-articles"></div></div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="fab-btn" onclick="openModalCommande()">+</button>
+  <button class="dark-toggle" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+
+  <!-- MODALS (commandes, clients, stock, media) -->
+  <!-- Modal Commande -->
+  <div class="modal-overlay" id="modal-commande"><div class="modal"><div class="modal-title">✂️ Nouvelle Commande</div>
+    <div class="form-group"><label class="form-label">Client</label><select class="form-select" id="cmd-client"></select></div>
+    <div class="form-group"><label class="form-label">Ou nouveau client</label><input class="form-input" id="cmd-nouveau-client" placeholder="Nom"><input class="form-input" id="cmd-nouveau-tel" placeholder="Téléphone" style="margin-top:5px;"></div>
+    <div class="form-group"><label class="form-label">Article</label><input class="form-input" id="cmd-article"></div>
+    <div class="form-row"><div class="form-group"><label>Prix (FCFA)</label><input class="form-input" type="number" id="cmd-prix"></div><div class="form-group"><label>Acompte</label><input class="form-input" type="number" id="cmd-acompte"></div></div>
+    <div class="form-group"><label>Date livraison</label><input class="form-input" type="date" id="cmd-date"></div>
+    <div class="form-group"><label>Notes</label><textarea class="form-textarea" id="cmd-notes"></textarea></div>
+    <button class="btn-primary" onclick="saveCommande()">Enregistrer</button>
+    <button class="btn-primary" style="background:transparent;color:var(--gray);" onclick="closeModals()">Annuler</button>
+  </div></div>
+
+  <!-- Modal Client avec mensurations Homme/Femme -->
+  <div class="modal-overlay" id="modal-client"><div class="modal"><div class="modal-title">👗 Nouveau Client</div>
+    <div class="form-row"><div class="form-group"><label>Prénom</label><input class="form-input" id="cli-prenom"></div><div class="form-group"><label>Nom</label><input class="form-input" id="cli-nom"></div></div>
+    <div class="form-group"><label>Téléphone WhatsApp</label><input class="form-input" id="cli-tel"></div>
+    <div class="form-group"><label>Sexe</label><select class="form-select" id="cli-sexe" onchange="toggleMesures()"><option value="femme">Femme</option><option value="homme">Homme</option></select></div>
+    <!-- Mensurations Femme -->
+    <div id="mesures-femme"><div class="section-title" style="font-size:14px;">📏 Mensurations Femme (cm)</div>
+      <div class="form-row"><div class="form-group"><label>Épaule</label><input class="form-input" type="number" id="fem-epaule"></div><div class="form-group"><label>Poitrine</label><input class="form-input" type="number" id="fem-poitrine"></div></div>
+      <div class="form-row"><div class="form-group"><label>Taille</label><input class="form-input" type="number" id="fem-taille"></div><div class="form-group"><label>Longueur soutien</label><input class="form-input" type="number" id="fem-long-soutien"></div></div>
+      <div class="form-row"><div class="form-group"><label>Longueur haut</label><input class="form-input" type="number" id="fem-long-haut"></div><div class="form-group"><label>Ceinture</label><input class="form-input" type="number" id="fem-ceinture"></div></div>
+      <div class="form-row"><div class="form-group"><label>Bassin</label><input class="form-input" type="number" id="fem-bassin"></div><div class="form-group"><label>Longueur jupe</label><input class="form-input" type="number" id="fem-long-jupe"></div></div>
+      <div class="form-row"><div class="form-group"><label>Longueur robe</label><input class="form-input" type="number" id="fem-long-robe"></div><div class="form-group"><label>Longueur manche</label><input class="form-input" type="number" id="fem-long-manche"></div></div>
+      <div class="form-group"><label>Tour de manche</label><input class="form-input" type="number" id="fem-tour-manche"></div>
+    </div>
+    <!-- Mensurations Homme -->
+    <div id="mesures-homme" style="display:none;"><div class="section-title" style="font-size:14px;">📏 Mensurations Homme (cm)</div>
+      <div class="form-row"><div class="form-group"><label>Épaule</label><input class="form-input" type="number" id="hom-epaule"></div><div class="form-group"><label>Poitrine</label><input class="form-input" type="number" id="hom-poitrine"></div></div>
+      <div class="form-row"><div class="form-group"><label>Longueur chemise</label><input class="form-input" type="number" id="hom-long-chemise"></div><div class="form-group"><label>Longueur manche</label><input class="form-input" type="number" id="hom-long-manche"></div></div>
+      <div class="form-row"><div class="form-group"><label>Tour du mache</label><input class="form-input" type="number" id="hom-tour-mache"></div><div class="form-group"><label>Ceinture</label><input class="form-input" type="number" id="hom-ceinture"></div></div>
+      <div class="form-row"><div class="form-group"><label>Bassin</label><input class="form-input" type="number" id="hom-bassin"></div><div class="form-group"><label>Cuisse</label><input class="form-input" type="number" id="hom-cuisse"></div></div>
+      <div class="form-row"><div class="form-group"><label>Longueur pantalon</label><input class="form-input" type="number" id="hom-long-pantalon"></div><div class="form-group"><label>Bas</label><input class="form-input" type="number" id="hom-bas"></div></div>
+    </div>
+    <button class="btn-primary" onclick="saveClient()">Enregistrer</button>
+    <button class="btn-primary" style="background:transparent;" onclick="closeModals()">Annuler</button>
+  </div></div>
+
+  <!-- Modal Stock -->
+  <div class="modal-overlay" id="modal-stock"><div class="modal"><div class="modal-title">🧵 Ajouter Stock</div>
+    <div class="form-group"><label>Nom matière</label><input class="form-input" id="stk-nom"></div>
+    <div class="form-row"><div class="form-group"><label>Quantité</label><input class="form-input" type="number" id="stk-qty"></div><div class="form-group"><label>Unité</label><select class="form-select" id="stk-unit"><option>mètres</option><option>bobines</option><option>pièces</option></select></div></div>
+    <div class="form-group"><label>Seuil alerte</label><input class="form-input" type="number" id="stk-seuil"></div>
+    <button class="btn-primary" onclick="saveStock()">Enregistrer</button>
+    <button class="btn-primary" style="background:transparent;" onclick="closeModals()">Annuler</button>
+  </div></div>
+
+  <!-- Modal Media (vidéo/photo) -->
+  <div class="modal-overlay" id="modal-media"><div class="modal"><div class="modal-title">📸 Ajouter média</div>
+    <div class="form-group"><label>Type</label><select class="form-select" id="media-type"><option value="image">Image</option><option value="video">Vidéo MP4</option></select></div>
+    <div class="form-group"><label>URL (lien)</label><input class="form-input" id="media-url" placeholder="https://..."></div>
+    <div class="form-group"><label>Titre</label><input class="form-input" id="media-title"></div>
+    <button class="btn-primary" onclick="saveMedia()">Ajouter</button>
+    <button class="btn-primary" style="background:transparent;" onclick="closeModals()">Annuler</button>
+  </div></div>
+
+  <div class="toast" id="toast">✅ Action réussie</div>
+</div>
+
+<script>
+// ========== DATA ==========
+let commandes = JSON.parse(localStorage.getItem('commandes')) || [];
+let clients = JSON.parse(localStorage.getItem('clients')) || [];
+let stock = JSON.parse(localStorage.getItem('stock')) || [];
+let videos = JSON.parse(localStorage.getItem('videos')) || [];
+let gallery = JSON.parse(localStorage.getItem('gallery')) || [];
+let currentFilter = 'tous';
+let autoScrollInterval = null;
+let audioPlayer = null;
+
+// Dashboard photos
+const dashboardPhotos = [
+  "https://i.imgur.com/ac98FQn.jpeg",
+  "https://i.imgur.com/ufw1bXG.jpeg",
+  "https://i.imgur.com/lGvGZev.jpeg",
+  "https://i.imgur.com/9APzkFX.jpeg"
+];
+
+// ========== INIT ==========
+function init() {
+  if(clients.length === 0) seedData();
+  renderDashboardPhotos();
+  updateStats();
+  renderCommandes();
+  renderClients();
+  renderStock();
+  // renderTV et renderCharts : chargés à la demande via showSection
+  showSection('dashboard', document.querySelector('.nav-btn'));
+}
+function seedData() {
+  clients = [{id:1, nom:"Aminata Sawadogo", tel:"+22670123456", sexe:"femme", mesures:{epaule:38, poitrine:90, taille:70, longSoutien:30, longHaut:45, ceinture:72, bassin:96, longJupe:60, longRobe:110, longManche:56, tourManche:28}}];
+  commandes = [{id:101, client:"Aminata Sawadogo", tel:"+22670123456", article:"Robe wax", prix:15000, acompte:5000, date:"2026-04-20", statut:"cours", notes:""}];
+  stock = [{id:1, nom:"Tissu wax", qty:8, unit:"mètres", seuil:3}];
+  videos = [{id:1, type:"video", url:"https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4", title:"Boubou moderne"}];
+  gallery = [{id:1, type:"image", url:"https://images.pexels.com/photos/2065195/pexels-photo-2065195.jpeg?w=300", title:"Robe élégante"}];
+  localStorage.setItem('commandes', JSON.stringify(commandes));
+  localStorage.setItem('clients', JSON.stringify(clients));
+  localStorage.setItem('stock', JSON.stringify(stock));
+  localStorage.setItem('videos', JSON.stringify(videos));
+  localStorage.setItem('gallery', JSON.stringify(gallery));
+}
+function renderDashboardPhotos() { document.getElementById('dashboard-photos').innerHTML = dashboardPhotos.map(url => `<div class="photo-card"><img src="${url}" onclick="openZoom('${url}')"></div>`).join(''); }
+function updateStats() { document.getElementById('stat-commandes').innerText = commandes.length; document.getElementById('stat-clients').innerText = clients.length; let rev = commandes.filter(c=>c.statut==='livre').reduce((s,c)=>s+(c.prix||0),0); document.getElementById('stat-revenue').innerText = rev.toLocaleString(); document.getElementById('dash-en-cours').innerText = commandes.filter(c=>c.statut==='cours').length; document.getElementById('dash-prets').innerText = commandes.filter(c=>c.statut==='pret').length; document.getElementById('dash-mois').innerText = commandes.filter(c=>new Date(c.createdAt||Date.now()).getMonth()===new Date().getMonth()).length; document.getElementById('dash-fcfa').innerText = rev.toLocaleString(); }
+
+function renderCommandes() { let filtered = currentFilter==='tous'?commandes:commandes.filter(c=>c.statut===currentFilter); if(!filtered.length){document.getElementById('commandes-list').innerHTML='<div class="empty-state">Aucune commande</div>'; return;}
+  document.getElementById('commandes-list').innerHTML = filtered.map(cmd=>`<div class="card"><div><strong>${cmd.client}</strong> - ${cmd.article}<br><small>📅 ${cmd.date} | 💰 ${cmd.prix.toLocaleString()} FCFA</small></div><div style="display:flex; gap:8px; margin-top:10px;"><button class="btn btn-whatsapp" onclick="envoyerWhatsApp(${cmd.id})"><i class="fab fa-whatsapp"></i> WhatsApp</button><button class="btn btn-primary" onclick="changerStatut(${cmd.id})">Changer statut</button></div></div>`).join(''); }
+function changerStatut(id){ let cmd=commandes.find(c=>c.id===id); let etats={attente:'cours',cours:'pret',pret:'livre',livre:'livre'}; cmd.statut=etats[cmd.statut]; localStorage.setItem('commandes',JSON.stringify(commandes)); renderCommandes(); updateStats(); showToast('Statut mis à jour'); }
+function envoyerWhatsApp(id){ let cmd=commandes.find(c=>c.id===id); if(!cmd||!cmd.tel) return; let tel=cmd.tel.replace(/\s/g,'').replace('+',''); let msg=`Bonjour ${cmd.client}, votre commande "${cmd.article}" est ${cmd.statut==='pret'?'prête à être récupérée':cmd.statut==='cours'?'en cours de réalisation':'enregistrée'}. Livraison prévue le ${cmd.date}. Merci d'avoir fait confiance à BEN-COUTURE. Contact: 71044468 / 76906471`; window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank'); }
+function renderClients(){ let html=clients.map(c=>`<div class="card"><strong>${c.nom}</strong> ${c.tel?`<br><small>📞 ${c.tel}</small>`:''}<div class="mesures-grid">${Object.entries(c.mesures||{}).map(([k,v])=>`<div class="mesure-item"><strong>${v}</strong>${k}</div>`).join('')}</div></div>`).join(''); document.getElementById('clients-list').innerHTML=html||'<div class="empty-state">Aucun client</div>'; }
+function renderStock(){ let html=stock.map(s=>`<div class="card"><strong>${s.nom}</strong> : ${s.qty} ${s.unit} ${s.qty<=s.seuil?'⚠️ Stock bas':''}</div>`).join(''); document.getElementById('stock-list').innerHTML=html||'<div class="empty-state">Stock vide</div>'; }
+function renderTV(){ let vhtml=videos.map(v=>`<div class="video-card"><video src="${v.url}" controls></video><div>${v.title}</div></div>`).join(''); document.getElementById('videos-list').innerHTML=vhtml||'<div>Aucune vidéo</div>'; let ghtml=gallery.map(g=>`<div class="scroll-item"><img src="${g.url}" onclick="openZoom('${g.url}')"></div>`).join(''); document.getElementById('gallery-scroll').innerHTML=ghtml||'<div>Aucune image</div>'; }
+let _chartMonth = null, _chartStatus = null;
+function renderCharts(){
+  if(!window.Chart) return;
+  let months=['Jan','Fév','Mar','Avr','Mai','Juin'];
+  let data=months.map((m,i)=>commandes.filter(c=>new Date(c.createdAt||Date.now()).getMonth()===i).length);
+  if(_chartMonth) _chartMonth.destroy();
+  _chartMonth = new Chart(document.getElementById('monthChart'),{type:'bar',data:{labels:months,datasets:[{label:'Commandes',data:data,backgroundColor:'#8B4513'}]}});
+  let statusCount={attente:0,cours:0,pret:0,livre:0};
+  commandes.forEach(c=>statusCount[c.statut]++);
+  if(_chartStatus) _chartStatus.destroy();
+  _chartStatus = new Chart(document.getElementById('statusChart'),{type:'pie',data:{labels:['Attente','En cours','Prêt','Livré'],datasets:[{data:[statusCount.attente,statusCount.cours,statusCount.pret,statusCount.livre],backgroundColor:['#FFC107','#17A2B8','#28A745','#6C757D']}]}});
+}
+
+function saveCommande(){ let client=document.getElementById('cmd-client').value||document.getElementById('cmd-nouveau-client').value; if(!client){showToast('Client requis');return;} let cmd={id:Date.now(),client:client,tel:document.getElementById('cmd-nouveau-tel').value,article:document.getElementById('cmd-article').value,prix:parseInt(document.getElementById('cmd-prix').value)||0,acompte:parseInt(document.getElementById('cmd-acompte').value)||0,date:document.getElementById('cmd-date').value,statut:'attente',createdAt:new Date().toISOString()}; commandes.unshift(cmd); localStorage.setItem('commandes',JSON.stringify(commandes)); closeModals(); renderCommandes(); updateStats(); showToast('Commande ajoutée'); }
+function saveClient(){ let sexe=document.getElementById('cli-sexe').value; let nom=(document.getElementById('cli-prenom').value+' '+document.getElementById('cli-nom').value).trim(); if(!nom){showToast('Nom requis');return;} let mesures={}; if(sexe==='femme'){ mesures={epaule:document.getElementById('fem-epaule').value,poitrine:document.getElementById('fem-poitrine').value,taille:document.getElementById('fem-taille').value,longSoutien:document.getElementById('fem-long-soutien').value,longHaut:document.getElementById('fem-long-haut').value,ceinture:document.getElementById('fem-ceinture').value,bassin:document.getElementById('fem-bassin').value,longJupe:document.getElementById('fem-long-jupe').value,longRobe:document.getElementById('fem-long-robe').value,longManche:document.getElementById('fem-long-manche').value,tourManche:document.getElementById('fem-tour-manche').value};} else{ mesures={epaule:document.getElementById('hom-epaule').value,poitrine:document.getElementById('hom-poitrine').value,longChemise:document.getElementById('hom-long-chemise').value,longManche:document.getElementById('hom-long-manche').value,tourMache:document.getElementById('hom-tour-mache').value,ceinture:document.getElementById('hom-ceinture').value,bassin:document.getElementById('hom-bassin').value,cuisse:document.getElementById('hom-cuisse').value,longPantalon:document.getElementById('hom-long-pantalon').value,bas:document.getElementById('hom-bas').value};}
+  let client={id:Date.now(),nom:nom,tel:document.getElementById('cli-tel').value,sexe:sexe,mesures:mesures}; clients.push(client); localStorage.setItem('clients',JSON.stringify(clients)); closeModals(); renderClients(); updateStats(); showToast('Client ajouté'); }
+function saveStock(){ let nom=document.getElementById('stk-nom').value; if(!nom){showToast('Nom requis');return;} let item={id:Date.now(),nom:nom,qty:parseFloat(document.getElementById('stk-qty').value)||0,unit:document.getElementById('stk-unit').value,seuil:parseFloat(document.getElementById('stk-seuil').value)||1}; stock.push(item); localStorage.setItem('stock',JSON.stringify(stock)); closeModals(); renderStock(); showToast('Stock mis à jour'); }
+function saveMedia(){ let type=document.getElementById('media-type').value; let url=document.getElementById('media-url').value; let title=document.getElementById('media-title').value; if(!url){showToast('URL requise');return;} if(type==='video'){ videos.push({id:Date.now(),type,url,title}); localStorage.setItem('videos',JSON.stringify(videos));} else{ gallery.push({id:Date.now(),type,url,title}); localStorage.setItem('gallery',JSON.stringify(gallery));} closeModals(); renderTV(); showToast('Média ajouté'); }
+function toggleMesures(){ let sexe=document.getElementById('cli-sexe').value; document.getElementById('mesures-femme').style.display=sexe==='femme'?'block':'none'; document.getElementById('mesures-homme').style.display=sexe==='homme'?'block':'none'; }
+function openZoom(url){ window.open(url,'_blank'); }
+function playMusic(){ let url=document.getElementById('music-url').value; if(audioPlayer){audioPlayer.pause();} audioPlayer=new Audio(url); audioPlayer.loop=true; audioPlayer.play(); showToast('Musique en fond'); }
+function stopMusic(){ if(audioPlayer){audioPlayer.pause(); audioPlayer=null; showToast('Musique arrêtée');} }
+function startAutoScroll(){ let container=document.getElementById('gallery-scroll'); stopAutoScroll(); autoScrollInterval=setInterval(()=>{ container.scrollBy({top:500,behavior:'smooth'}); if(container.scrollTop+container.clientHeight>=container.scrollHeight) container.scrollTop=0; },4000); }
+function stopAutoScroll(){ if(autoScrollInterval){clearInterval(autoScrollInterval); autoScrollInterval=null;} }
+function exportPDF(){ ensureHtml2pdf(function(){ let element=document.getElementById('section-dashboard'); html2pdf().from(element).set({margin:1,filename:'ben-couture-rapport.pdf'}).save(); showToast('PDF généré'); }); }
+function toggleDarkMode(){ document.body.classList.toggle('dark'); localStorage.setItem('darkMode',document.body.classList.contains('dark')); }
+function syncWithCloud(){ document.getElementById('sync-status').innerHTML='☁️ Synchronisation...'; setTimeout(()=>{ document.getElementById('sync-status').innerHTML='☁️ Cloud OK'; showToast('Synchronisé avec le cloud (démo)'); },1500); }
+function showSection(name, btn){ document.querySelectorAll('.section').forEach(s=>s.classList.remove('active')); document.getElementById(`section-${name}`).classList.add('active'); document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active')); if(btn) btn.classList.add('active'); else if(event&&event.currentTarget) event.currentTarget.classList.add('active'); let fab=document.getElementById('fab-btn'); if(name==='commandes'||name==='clients'||name==='stock') fab.style.display='flex'; else fab.style.display='none'; if(name==='tv') renderTV(); if(name==='stats') ensureChartJs(renderCharts); }
+function filterCommandes(f){ currentFilter=f; renderCommandes(); }
+function openModalCommande(){ let select=document.getElementById('cmd-client'); select.innerHTML='<option value="">-- Choisir client --'+clients.map(c=>`<option>${c.nom}</option>`).join(''); document.getElementById('modal-commande').classList.add('open'); }
+function openModalClient(){ document.getElementById('modal-client').classList.add('open'); toggleMesures(); }
+function openModalStock(){ document.getElementById('modal-stock').classList.add('open'); }
+function openModalMedia(){ document.getElementById('modal-media').classList.add('open'); }
+function closeModals(){ document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('open')); }
+function showToast(msg){ let t=document.getElementById('toast'); t.innerText=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); }
+if(localStorage.getItem('darkMode')==='true') document.body.classList.add('dark');
+init();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyCYdA9oUSFIS6Q6kn6iWXibvqypZywx8v8",
+    authDomain: "pos-of-africa.firebaseapp.com",
+    databaseURL: "https://pos-of-africa-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "pos-of-africa",
+    storageBucket: "pos-of-africa.firebasestorage.app",
+    messagingSenderId: "887623442752",
+    appId: "1:887623442752:web:dceffb2739870b8989daa5"
+  };
+  // Attendre que firebase soit disponible (defer)
+  function waitFirebase(cb, tries) {
+    if (window.firebase) { cb(); }
+    else if ((tries||0) < 20) { setTimeout(function(){ waitFirebase(cb, (tries||0)+1); }, 150); }
+  }
+  waitFirebase(function() {
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+  // ========== FONCTIONS DE SYNCHRONISATION ==========
+  
+  // Sauvegarder TOUTES les données dans le cloud
+  async function sauvegarderSurFirebase() {
+    try {
+      const commandes = JSON.parse(localStorage.getItem('commandes')) || [];
+      const clients = JSON.parse(localStorage.getItem('clients')) || [];
+      const stock = JSON.parse(localStorage.getItem('stock')) || [];
+      const videos = JSON.parse(localStorage.getItem('videos')) || [];
+      const gallery = JSON.parse(localStorage.getItem('gallery')) || [];
+      
+      await db.collection('backup').doc('mesDonnees').set({
+        commandes: commandes,
+        clients: clients,
+        stock: stock,
+        videos: videos,
+        gallery: gallery,
+        date: new Date().toISOString()
+      });
+      
+      document.getElementById('sync-status').innerHTML = '☁️ Cloud ✅';
+      showToast('✅ Sauvegarde cloud réussie !');
+    } catch (error) {
+      console.error(error);
+      showToast('❌ Erreur de synchronisation');
+    }
+  }
+  
+  // CHARGER les données depuis le cloud
+  async function chargerDepuisFirebase() {
+    try {
+      const doc = await db.collection('backup').doc('mesDonnees').get();
+      if (doc.exists) {
+        const data = doc.data();
+        localStorage.setItem('commandes', JSON.stringify(data.commandes || []));
+        localStorage.setItem('clients', JSON.stringify(data.clients || []));
+        localStorage.setItem('stock', JSON.stringify(data.stock || []));
+        localStorage.setItem('videos', JSON.stringify(data.videos || []));
+        localStorage.setItem('gallery', JSON.stringify(data.gallery || []));
+        
+        showToast('📥 Données chargées depuis le cloud !');
+        location.reload(); // Recharger la page
+      } else {
+        showToast('Aucune sauvegarde trouvée');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('❌ Erreur de chargement');
+    }
+  }
+  
+  // Remplacer la fonction syncWithCloud existante
+    window.syncWithCloud = sauvegarderSurFirebase;
+    
+    // Ajouter un bouton "Charger depuis le cloud"
+    function ajouterBoutonChargement() {
+      const container = document.querySelector('#section-dashboard .backup-section') || 
+                        document.querySelector('#section-dashboard');
+      if (container && !document.getElementById('btn-charger-cloud')) {
+        const btn = document.createElement('button');
+        btn.id = 'btn-charger-cloud';
+        btn.className = 'btn-primary';
+        btn.style.marginTop = '10px';
+        btn.style.background = '#2980B9';
+        btn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> Charger depuis le cloud';
+        btn.onclick = chargerDepuisFirebase;
+        container.appendChild(btn);
+      }
+    }
+    setTimeout(ajouterBoutonChargement, 500);
+  }); // fin waitFirebase
+}); // fin DOMContentLoaded
+</script>
+</body>
+</html>
