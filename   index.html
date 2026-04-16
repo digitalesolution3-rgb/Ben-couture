@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#8B4513">
+<meta name="description" content="Ben-Couture - Gestion des commandes, clients et stock">
+<title>Ben-Couture | Atelier de Couture</title>
+
+<!-- ═══════════════════════════════════════════════
+     PWA — Manifest & Installation
+═══════════════════════════════════════════════ -->
+<link rel="manifest" href="manifest.json">
+
+<!-- iOS Safari — support PWA natif -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ben-Couture">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+<link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+
+<!-- Windows / Microsoft Edge -->
+<meta name="msapplication-TileImage" content="icons/icon-144.png">
+<meta name="msapplication-TileColor" content="#8B4513">
+<meta name="msapplication-tap-highlight" content="no">
+
+<!-- Favicon standard -->
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="shortcut icon" href="icons/icon-96.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+function loadScript(url,cb){var s=document.createElement('script');s.src=url;s.onload=cb||function(){};document.head.appendChild(s);}
+function ensureChartJs(cb){if(window.Chart){cb();return;}loadScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',cb);}
+function ensureHtml2pdf(cb){if(window.html2pdf){cb();return;}loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',cb);}
+</script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #8B4513;
+  --primary-light: #A0522D;
+  --secondary: #D4A843;
+  --dark: #2C1810;
+  --light: #FAF6EE;
+  --gray: #6B4C3B;
+  --success: #2D6A4F;
+  --danger: #C0392B;
+  --info: #2980B9;
+  --border: #E8D5BF;
+  --card: #FFFFFF;
+}
+body {
+  font-family: 'Poppins', sans-serif;
+  background: var(--light);
+  color: var(--dark);
+  transition: all 0.3s ease;
+  overflow-x: hidden;
+}
+body.dark {
+  --light: #1a1a2e;
+  --card: #16213e;
+  --dark: #eee;
+  --gray: #aaa;
+  --border: #2c3e50;
+  background: #0f0f1a;
+  color: #eee;
+}
+.container { max-width: 500px; margin: 0 auto; background: var(--light); min-height: 100vh; position: relative; }
+.header { background: linear-gradient(135deg, var(--primary), var(--primary-light)); padding: 20px; position: sticky; top: 0; z-index: 100; }
+.logo-area { display: flex; align-items: center; gap: 12px; }
+.logo-icon { width: 50px; height: 50px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.logo-text h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--secondary); }
+.logo-text p { font-size: 10px; color: rgba(255,255,255,0.8); letter-spacing: 2px; }
+.stats { display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap; }
+.stat-pill { background: rgba(255,255,255,0.2); padding: 5px 12px; border-radius: 20px; font-size: 12px; color: white; }
+.stat-pill strong { color: var(--secondary); }
+.nav { display: flex; background: var(--card); border-bottom: 2px solid var(--border); overflow-x: auto; position: sticky; top: 100px; z-index: 99; }
+.nav-btn { flex: 1; min-width: 70px; padding: 12px 5px; background: none; border: none; font-size: 11px; font-weight: 500; color: var(--gray); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; border-bottom: 3px solid transparent; transition: all 0.2s; }
+.nav-btn i { font-size: 18px; }
+.nav-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--light); }
+.section { display: none; padding: 16px; }
+.section.active { display: block; }
+.card { background: var(--card); border-radius: 16px; padding: 15px; margin-bottom: 12px; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+.btn { padding: 8px 12px; border-radius: 10px; border: none; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
+.btn:active { transform: scale(0.96); }
+.btn-whatsapp { background: #25D366; color: white; }
+.btn-primary { background: var(--primary); color: white; padding: 12px 20px; width: 100%; margin-top: 8px; border-radius: 12px; font-size: 14px; border: none; cursor: pointer; display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-secondary { background: var(--gray); color: white; }
+.fab { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 24px; cursor: pointer; box-shadow: 0 4px 20px rgba(139,69,19,0.4); display: flex; align-items: center; justify-content: center; z-index: 200; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 300; align-items: flex-end; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card); border-radius: 24px 24px 0 0; padding: 24px 20px; width: 100%; max-width: 500px; margin: 0 auto; max-height: 85vh; overflow-y: auto; }
+.form-group { margin-bottom: 14px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--gray); text-transform: uppercase; margin-bottom: 5px; display: block; }
+.form-input, .form-select, .form-textarea { width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; font-family: 'Poppins', sans-serif; font-size: 14px; background: var(--light); color: var(--dark); outline: none; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mesures-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.mesure-item { background: var(--light); padding: 6px; border-radius: 8px; text-align: center; font-size: 11px; }
+.mesure-item strong { display: block; color: var(--primary); font-size: 14px; }
+.photos-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
+.photo-card { border-radius: 12px; overflow: hidden; aspect-ratio: 1/1; }
+.photo-card img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+.dark-toggle { position: fixed; bottom: 90px; left: 24px; width: 48px; height: 48px; border-radius: 50%; background: var(--card); border: 2px solid var(--primary); color: var(--primary); font-size: 20px; cursor: pointer; z-index: 200; display: flex; align-items: center; justify-content: center; }
+.chart-container { background: var(--card); padding: 15px; border-radius: 16px; margin-bottom: 15px; }
+.toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--dark); color: white; padding: 10px 20px; border-radius: 30px; font-size: 13px; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+.toast.show { opacity: 1; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+.video-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.video-card { background: var(--card); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.video-card video { width: 100%; max-height: 250px; }
+.music-player { background: var(--card); padding: 12px; border-radius: 12px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.music-player input { flex: 1; padding: 8px; border-radius: 20px; border: 1px solid var(--border); background: var(--light); color: var(--dark); min-width: 0; }
+.scroll-container { height: 500px; overflow-y: auto; scroll-snap-type: y mandatory; border-radius: 16px; }
+.scroll-item { scroll-snap-align: start; height: 500px; display: flex; align-items: center; justify-content: center; background: #000; position: relative; }
+.scroll-item img { width: 100%; height: 100%; object-fit: contain; }
+.filter-btn { padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--card); color: var(--gray); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+.sync-banner { background: rgba(45,106,79,0.12); border: 1px solid rgba(45,106,79,0.3); border-radius: 12px; padding: 12px 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--success); }
+.sync-banner i { font-size: 16px; }
+
+/* MODE PLEIN ÉCRAN TV */
+.fullscreen-mode {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+  z-index: 9999 !important;
+  overflow-y: auto !important;
+}
+.fullscreen-mode .header,
+.fullscreen-mode .nav,
+.fullscreen-mode .fab,
+.fullscreen-mode .dark-toggle,
+.fullscreen-mode .toast { display: none !important; }
+.fullscreen-mode .section { display: block !important; padding: 0 !important; background: #000 !important; }
+.fullscreen-mode .music-player { position: fixed; bottom: 20px; left: 20px; right: 20px; z-index: 10000; background: rgba(0,0,0,0.8); border: 1px solid #333; }
+.fullscreen-mode .video-card video { max-height: none; height: auto; min-height: 300px; }
+.fullscreen-mode .scroll-container { height: calc(100vh - 100px); }
+.fullscreen-mode .scroll-item { height: calc(100vh - 80px); }
+
+.btn-fullscreen {
+  background: var(--primary);
+  color: white;
+  padding: 10px 15px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+.btn-fullscreen i { font-size: 16px; }
+.exit-fullscreen-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  border: 1px solid white;
+  padding: 10px 15px;
+  border-radius: 30px;
+  cursor: pointer;
+  z-index: 10001;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.exit-fullscreen-btn:hover { background: var(--danger); }
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--primary); }
+</style>
+</head>
+<body>
+<div class="container" id="appContainer">
+  <div class="header">
+    <div class="logo-area">
+      <div class="logo-icon">✂️</div>
+      <div class="logo-text">
+        <h1>BEN-COUTURE</h1>
+        <p>ATELIER D'EXCELLENCE</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-pill">📦 <strong id="stat-commandes">0</strong> commandes</div>
+      <div class="stat-pill">👥 <strong id="stat-clients">0</strong> clients</div>
+      <div class="stat-pill">💰 <strong id="stat-revenue">0</strong> FCFA</div>
+      <div class="stat-pill" id="sync-status">☁️ Connexion...</div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="nav-btn active" onclick="showSection('dashboard')"><i class="fas fa-home"></i>Accueil</button>
+    <button class="nav-btn" onclick="showSection('commandes')"><i class="fas fa-clipboard-list"></i>Commandes</button>
+    <button class="nav-btn" onclick="showSection('clients')"><i class="fas fa-users"></i>Clients</button>
+    <button class="nav-btn" onclick="showSection('stock')"><i class="fas fa-boxes"></i>Stock</button>
+    <button class="nav-btn" onclick="showSection('tv')"><i class="fas fa-tv"></i>TV Ben</button>
+    <button class="nav-btn" onclick="showSection('stats')"><i class="fas fa-chart-line"></i>Stats</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="section active" id="section-dashboard">
+    <div class="sync-banner">
+      <i class="fas fa-circle" id="sync-dot" style="font-size:10px;"></i>
+      <span id="sync-label">Connexion au cloud en cours...</span>
+    </div>
+    <div class="card">
+      <h3 style="color: var(--primary);">✨ Nos Créations Phares</h3>
+      <div class="photos-grid" id="dashboard-photos"></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="dash-en-cours">0</div><div>En cours</div></div>
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="dash-prets">0</div><div>Prêts</div></div>
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--primary);" id="dash-mois">0</div><div>Ce mois</div></div>
+      <div class="card" style="text-align: center;"><div style="font-size: 32px; font-weight: bold; color: var(--success);" id="dash-fcfa">0</div><div>FCFA encaissés</div></div>
+    </div>
+    <div class="card">
+      <h3>🔔 À faire aujourd'hui</h3>
+      <div id="todo-list"></div>
+    </div>
+    <button class="btn-primary" style="background: var(--success); margin-top: 10px;" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Exporter rapport PDF</button>
+  </div>
+
+  <!-- COMMANDES -->
+  <div class="section" id="section-commandes">
+    <div class="filter-row" style="display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px;">
+      <button class="filter-btn active" onclick="filterCommandes('tous')">Tous</button>
+      <button class="filter-btn" onclick="filterCommandes('attente')">Attente</button>
+      <button class="filter-btn" onclick="filterCommandes('cours')">En cours</button>
+      <button class="filter-btn" onclick="filterCommandes('pret')">Prêt</button>
+      <button class="filter-btn" onclick="filterCommandes('livre')">Livré</button>
+    </div>
+    <div id="commandes-list"></div>
+  </div>
+
+  <!-- CLIENTS -->
+  <div class="section" id="section-clients">
+    <div id="clients-list"></div>
+  </div>
+
+  <!-- STOCK -->
+  <div class="section" id="section-stock">
+    <div id="stock-list"></div>
+    <button class="btn-primary" onclick="openModalStock()">+ Ajouter au stock</button>
+  </div>
+
+  <!-- TV BEN -->
+  <div class="section" id="section-tv">
+    <button class="btn-fullscreen" onclick="toggleFullScreenTV()">
+      <i class="fas fa-expand"></i> Mode Plein Écran
+    </button>
+    <div class="music-player">
+      <i class="fas fa-music" style="color:var(--primary);"></i>
+      <input type="text" id="music-url" placeholder="URL musique MP3...">
+      <button class="btn btn-primary" style="width:auto;padding:8px 12px;margin:0;" onclick="playMusic()"><i class="fas fa-play"></i></button>
+      <button class="btn btn-secondary" onclick="stopMusic()"><i class="fas fa-stop"></i></button>
+    </div>
+    <div style="font-weight: bold; margin-bottom: 10px;">📹 Vidéos des modèles</div>
+    <div class="video-grid" id="videos-list"></div>
+    <div style="font-weight: bold; margin: 15px 0 10px;">📸 Galerie TikTok Style</div>
+    <div class="scroll-container" id="gallery-scroll"></div>
+    <div style="display: flex; gap: 10px; margin-top: 10px;">
+      <button class="btn btn-primary" style="width:auto;margin:0;" onclick="startAutoScroll()"><i class="fas fa-play"></i> Auto-scroll</button>
+      <button class="btn btn-secondary" onclick="stopAutoScroll()"><i class="fas fa-stop"></i> Stop</button>
+    </div>
+    <button class="btn-primary" onclick="openModalMedia()" style="margin-top: 15px;">+ Ajouter vidéo / photo</button>
+  </div>
+
+  <!-- STATS -->
+  <div class="section" id="section-stats">
+    <div class="chart-container"><canvas id="monthChart"></canvas></div>
+    <div class="chart-container"><canvas id="statusChart"></canvas></div>
+    <div class="card"><h3>📊 Top clients</h3><div id="top-clients"></div></div>
+    <div class="card"><h3>🏆 Articles populaires</h3><div id="top-articles"></div></div>
+  </div>
+
+  <button class="fab" id="fab-btn" onclick="onFabClick()">+</button>
+  <button class="dark-toggle" onclick="toggleDarkMode()"><i class="fas fa-moon"></i></button>
+
+  <!-- MODAL COMMANDE -->
+  <div class="modal-overlay" id="modal-commande">
+    <div class="modal">
+      <div class="modal-title">✂️ Nouvelle Commande</div>
+      <div class="form-group"><label class="form-label">Client existant</label><select class="form-select" id="cmd-client"></select></div>
+      <div class="form-group"><label class="form-label">Ou nouveau client</label>
+        <input class="form-input" id="cmd-nouveau-client" placeholder="Nom du client">
+        <input class="form-input" id="cmd-nouveau-tel" placeholder="Téléphone" style="margin-top:5px;">
+      </div>
+      <div class="form-group"><label class="form-label">Article</label><input class="form-input" id="cmd-article"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Prix (FCFA)</label><input class="form-input" type="number" id="cmd-prix"></div>
+        <div class="form-group"><label class="form-label">Acompte</label><input class="form-input" type="number" id="cmd-acompte"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Date livraison</label><input class="form-input" type="date" id="cmd-date"></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="cmd-notes" rows="3"></textarea></div>
+      <button class="btn-primary" onclick="saveCommande()">Enregistrer</button>
+      <button class="btn-primary" style="background:transparent;color:var(--gray);" onclick="closeModals()">Annuler</button>
+    </div>
+  </div>
+
+  <!-- MODAL CLIENT -->
+  <div class="modal-overlay" id="modal-client">
+    <div class="modal">
+      <div class="modal-title">👗 Nouveau Client</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Prénom</label><input class="form-input" id="cli-prenom"></div>
+        <div class="form-group"><label class="form-label">Nom</label><input class="form-input" id="cli-nom"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Téléphone WhatsApp</label><input class="form-input" id="cli-tel"></div>
+      <div class="form-group"><label class="form-label">Sexe</label>
+        <select class="form-select" id="cli-sexe" onchange="toggleMesures()">
+          <option value="femme">Femme</option>
+          <option value="homme">Homme</option>
+        </select>
+      </div>
+      <div id="mesures-femme">
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">📏 Mensurations Femme (cm)</div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Épaule</label><input class="form-input" type="number" id="fem-epaule"></div><div class="form-group"><label class="form-label">Poitrine</label><input class="form-input" type="number" id="fem-poitrine"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Taille</label><input class="form-input" type="number" id="fem-taille"></div><div class="form-group"><label class="form-label">Long. soutien</label><input class="form-input" type="number" id="fem-long-soutien"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Long. haut</label><input class="form-input" type="number" id="fem-long-haut"></div><div class="form-group"><label class="form-label">Ceinture</label><input class="form-input" type="number" id="fem-ceinture"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Bassin</label><input class="form-input" type="number" id="fem-bassin"></div><div class="form-group"><label class="form-label">Long. jupe</label><input class="form-input" type="number" id="fem-long-jupe"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Long. robe</label><input class="form-input" type="number" id="fem-long-robe"></div><div class="form-group"><label class="form-label">Long. manche</label><input class="form-input" type="number" id="fem-long-manche"></div></div>
+        <div class="form-group"><label class="form-label">Tour de manche</label><input class="form-input" type="number" id="fem-tour-manche"></div>
+      </div>
+      <div id="mesures-homme" style="display:none;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">📏 Mensurations Homme (cm)</div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Épaule</label><input class="form-input" type="number" id="hom-epaule"></div><div class="form-group"><label class="form-label">Poitrine</label><input class="form-input" type="number" id="hom-poitrine"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Long. chemise</label><input class="form-input" type="number" id="hom-long-chemise"></div><div class="form-group"><label class="form-label">Long. manche</label><input class="form-input" type="number" id="hom-long-manche"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Tour du mache</label><input class="form-input" type="number" id="hom-tour-mache"></div><div class="form-group"><label class="form-label">Ceinture</label><input class="form-input" type="number" id="hom-ceinture"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Bassin</label><input class="form-input" type="number" id="hom-bassin"></div><div class="form-group"><label class="form-label">Cuisse</label><input class="form-input" type="number" id="hom-cuisse"></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label">Long. pantalon</label><input class="form-input" type="number" id="hom-long-pantalon"></div><div class="form-group"><label class="form-label">Bas</label><input class="form-input" type="number" id="hom-bas"></div></div>
+      </div>
+      <button class="btn-primary" onclick="saveClient()">Enregistrer</button>
+      <button class="btn-primary" style="background:transparent;color:var(--gray);" onclick="closeModals()">Annuler</button>
+    </div>
+  </div>
+
+  <!-- MODAL STOCK -->
+  <div class="modal-overlay" id="modal-stock">
+    <div class="modal">
+      <div class="modal-title">🧵 Ajouter Stock</div>
+      <div class="form-group"><label class="form-label">Nom matière</label><input class="form-input" id="stk-nom"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Quantité</label><input class="form-input" type="number" id="stk-qty"></div>
+        <div class="form-group"><label class="form-label">Unité</label>
+          <select class="form-select" id="stk-unit"><option>mètres</option><option>bobines</option><option>pièces</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Seuil alerte</label><input class="form-input" type="number" id="stk-seuil"></div>
+      <button class="btn-primary" onclick="saveStock()">Enregistrer</button>
+      <button class="btn-primary" style="background:transparent;color:var(--gray);" onclick="closeModals()">Annuler</button>
+    </div>
+  </div>
+
+  <!-- MODAL MEDIA -->
+  <div class="modal-overlay" id="modal-media">
+    <div class="modal">
+      <div class="modal-title">📸 Ajouter média</div>
+      <div class="form-group"><label class="form-label">Type</label>
+        <select class="form-select" id="media-type">
+          <option value="image">Image (URL)</option>
+          <option value="video">Vidéo MP4 (URL)</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">URL du fichier</label>
+        <input class="form-input" id="media-url" placeholder="https://...jpg / ...mp4 / ...mp3">
+      </div>
+      <div class="form-group"><label class="form-label">Titre</label>
+        <input class="form-input" id="media-title" placeholder="Description du média">
+      </div>
+      <button class="btn-primary" onclick="saveMedia()">Ajouter</button>
+      <button class="btn-primary" style="background:transparent;color:var(--gray);" onclick="closeModals()">Annuler</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">✅ Action réussie</div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG FIREBASE
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCYdA9oUSFIS6Q6kn6iWXibvqypZywx8v8",
+  authDomain: "pos-of-africa.firebaseapp.com",
+  projectId: "pos-of-africa",
+  storageBucket: "pos-of-africa.firebasestorage.app",
+  messagingSenderId: "887623442752",
+  appId: "1:887623442752:web:dceffb2739870b8989daa5"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================================
+// ÉTAT LOCAL (cache — mis à jour automatiquement par Firestore)
+// ============================================================
+let commandes = [];
+let clients   = [];
+let stock     = [];
+let videos    = [];
+let gallery   = [];
+let currentFilter    = 'tous';
+let autoScrollInterval = null;
+let audioPlayer      = null;
+let isFullScreen     = false;
+let currentSection   = 'dashboard';
+
+const dashboardPhotos = [
+  "https://i.imgur.com/ac98FQn.jpeg",
+  "https://i.imgur.com/ufw1bXG.jpeg",
+  "https://i.imgur.com/lGvGZev.jpeg",
+  "https://i.imgur.com/9APzkFX.jpeg"
+];
+
+// ============================================================
+// INITIALISATION + LISTENERS TEMPS RÉEL
+// ============================================================
+
+function init() {
+  renderDashboardPhotos();
+  setupRealtimeListeners();
+  showSection('dashboard');
+}
+
+function setupRealtimeListeners() {
+  setSyncStatus('connecting');
+
+  // ── Commandes ────────────────────────────────────────────
+  db.collection('ben_couture_commandes').doc('data').onSnapshot(
+    doc => {
+      commandes = doc.exists ? (doc.data().items || []) : [];
+      localStorage.setItem('commandes', JSON.stringify(commandes));
+      renderCommandes();
+      updateStats();
+      renderTodo();
+      setSyncStatus('online');
+    },
+    err => {
+      console.error('Listener commandes:', err);
+      commandes = JSON.parse(localStorage.getItem('commandes') || '[]');
+      renderCommandes(); updateStats(); renderTodo();
+      setSyncStatus('offline');
+    }
+  );
+
+  // ── Clients ──────────────────────────────────────────────
+  db.collection('ben_couture_clients').doc('data').onSnapshot(
+    doc => {
+      clients = doc.exists ? (doc.data().items || []) : [];
+      localStorage.setItem('clients', JSON.stringify(clients));
+      renderClients();
+      updateStats();
+    },
+    err => {
+      clients = JSON.parse(localStorage.getItem('clients') || '[]');
+      renderClients(); updateStats();
+    }
+  );
+
+  // ── Stock ────────────────────────────────────────────────
+  db.collection('ben_couture_stock').doc('data').onSnapshot(
+    doc => {
+      stock = doc.exists ? (doc.data().items || []) : [];
+      localStorage.setItem('stock', JSON.stringify(stock));
+      renderStock();
+    },
+    err => {
+      stock = JSON.parse(localStorage.getItem('stock') || '[]');
+      renderStock();
+    }
+  );
+
+  // ── Vidéos MP4 ───────────────────────────────────────────
+  // FIX: onSnapshot garantit que les URLs sont synchronisées sur tous les appareils
+  db.collection('ben_couture_videos').doc('data').onSnapshot(
+    doc => {
+      videos = doc.exists ? (doc.data().items || []) : [];
+      localStorage.setItem('videos', JSON.stringify(videos));
+      if (currentSection === 'tv') renderTV();
+    },
+    err => {
+      videos = JSON.parse(localStorage.getItem('videos') || '[]');
+      if (currentSection === 'tv') renderTV();
+    }
+  );
+
+  // ── Galerie (images) ─────────────────────────────────────
+  // FIX: onSnapshot garantit que les URLs images sont synchronisées sur tous les appareils
+  db.collection('ben_couture_gallery').doc('data').onSnapshot(
+    doc => {
+      gallery = doc.exists ? (doc.data().items || []) : [];
+      localStorage.setItem('gallery', JSON.stringify(gallery));
+      if (currentSection === 'tv') renderTV();
+    },
+    err => {
+      gallery = JSON.parse(localStorage.getItem('gallery') || '[]');
+      if (currentSection === 'tv') renderTV();
+    }
+  );
+
+  // ── Musique (URL MP3 persistée) ──────────────────────────
+  // FIX: l'URL musique est sauvegardée dans Firestore et restaurée sur tous les appareils
+  db.collection('ben_couture_settings').doc('music').onSnapshot(
+    doc => {
+      if (doc.exists && doc.data().url) {
+        const el = document.getElementById('music-url');
+        // Ne pas écraser si l'utilisateur est en train de taper
+        if (el && document.activeElement !== el) {
+          el.value = doc.data().url;
+        }
+      }
+    }
+  );
+}
+
+// ── Indicateur de statut ─────────────────────────────────────
+function setSyncStatus(state) {
+  const pill = document.getElementById('sync-status');
+  const dot  = document.getElementById('sync-dot');
+  const lbl  = document.getElementById('sync-label');
+  if (state === 'online') {
+    pill.innerHTML = '🔴 Temps réel ✅';
+    if (dot) dot.style.color = '#2D6A4F';
+    if (lbl) lbl.textContent = 'Synchronisation automatique active — multi-appareils';
+  } else if (state === 'offline') {
+    pill.innerHTML = '⚠️ Hors ligne';
+    if (dot) dot.style.color = '#C0392B';
+    if (lbl) lbl.textContent = 'Mode hors-ligne — données locales';
+  } else {
+    pill.innerHTML = '☁️ Connexion...';
+    if (dot) dot.style.color = '#D4A843';
+    if (lbl) lbl.textContent = 'Connexion au cloud en cours...';
+  }
+}
+
+// ============================================================
+// HELPER FIRESTORE — sauvegarde un tableau dans une collection
+// ============================================================
+async function saveToFirestore(collection, items) {
+  await db.collection(collection).doc('data').set({
+    items: items,
+    date:  new Date().toISOString()
+  });
+}
+
+// ============================================================
+// RENDU UI
+// ============================================================
+
+function renderDashboardPhotos() {
+  document.getElementById('dashboard-photos').innerHTML =
+    dashboardPhotos.map(url =>
+      `<div class="photo-card"><img src="${url}" loading="lazy" onclick="openZoom('${url}')"></div>`
+    ).join('');
+}
+
+function updateStats() {
+  document.getElementById('stat-commandes').innerText = commandes.length;
+  document.getElementById('stat-clients').innerText   = clients.length;
+  let rev = commandes.filter(c => c.statut === 'livre').reduce((s, c) => s + (c.prix || 0), 0);
+  document.getElementById('stat-revenue').innerText   = rev.toLocaleString();
+  document.getElementById('dash-en-cours').innerText  = commandes.filter(c => c.statut === 'cours').length;
+  document.getElementById('dash-prets').innerText     = commandes.filter(c => c.statut === 'pret').length;
+  document.getElementById('dash-mois').innerText      = commandes.filter(c => new Date(c.createdAt || Date.now()).getMonth() === new Date().getMonth()).length;
+  document.getElementById('dash-fcfa').innerText      = rev.toLocaleString();
+}
+
+function renderTodo() {
+  const today = new Date().toISOString().split('T')[0];
+  const dues  = commandes.filter(c => c.date === today && c.statut !== 'livre');
+  const el    = document.getElementById('todo-list');
+  if (!dues.length) {
+    el.innerHTML = '<div style="color:var(--gray);font-size:13px;padding:8px 0;">Aucune livraison prévue aujourd\'hui 🎉</div>';
+  } else {
+    el.innerHTML = dues.map(c =>
+      `<div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        📌 <strong>${c.client}</strong> — ${c.article}
+        <span style="float:right;color:var(--primary);">${(c.prix||0).toLocaleString()} FCFA</span>
+      </div>`
+    ).join('');
+  }
+}
+
+function renderCommandes() {
+  let filtered = currentFilter === 'tous' ? commandes : commandes.filter(c => c.statut === currentFilter);
+  if (!filtered.length) {
+    document.getElementById('commandes-list').innerHTML = '<div class="empty-state">Aucune commande</div>';
+    return;
+  }
+  const colors = { attente:'#FFC107', cours:'#17A2B8', pret:'#28A745', livre:'#6C757D' };
+  document.getElementById('commandes-list').innerHTML = filtered.map(cmd =>
+    `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <strong>${cmd.client}</strong> — ${cmd.article}<br>
+          <small>📅 ${cmd.date} | 💰 ${(cmd.prix||0).toLocaleString()} FCFA</small>
+        </div>
+        <span class="badge" style="background:${colors[cmd.statut]||'#aaa'};color:white;">${cmd.statut}</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-whatsapp" onclick="envoyerWhatsApp(${cmd.id})"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+        <button class="btn btn-primary" style="width:auto;padding:8px 12px;margin:0;" onclick="changerStatut(${cmd.id})">Changer statut</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function renderClients() {
+  const html = clients.map(c =>
+    `<div class="card">
+      <strong>${c.nom}</strong>
+      ${c.tel ? `<br><small>📞 ${c.tel}</small>` : ''}
+      <div class="mesures-grid">
+        ${Object.entries(c.mesures || {}).map(([k,v]) =>
+          `<div class="mesure-item"><strong>${v}</strong>${k}</div>`
+        ).join('')}
+      </div>
+    </div>`
+  ).join('');
+  document.getElementById('clients-list').innerHTML = html || '<div class="empty-state">Aucun client</div>';
+}
+
+function renderStock() {
+  const html = stock.map(s =>
+    `<div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+      <div><strong>${s.nom}</strong><br><small>${s.qty} ${s.unit}</small></div>
+      ${s.qty <= s.seuil ? '<span style="color:var(--danger);">⚠️ Stock bas</span>' : ''}
+    </div>`
+  ).join('');
+  document.getElementById('stock-list').innerHTML = html || '<div class="empty-state">Stock vide</div>';
+}
+
+function renderTV() {
+  // Vidéos MP4
+  const vhtml = videos.map(v =>
+    `<div class="video-card">
+      <video src="${v.url}" controls preload="metadata"></video>
+      <div style="padding:8px;font-size:13px;">${v.title || ''}</div>
+    </div>`
+  ).join('');
+  document.getElementById('videos-list').innerHTML = vhtml || '<div class="empty-state">Aucune vidéo</div>';
+
+  // Galerie images
+  const ghtml = gallery.map(g =>
+    `<div class="scroll-item"><img src="${g.url}" loading="lazy" onclick="openZoom('${g.url}')"></div>`
+  ).join('');
+  document.getElementById('gallery-scroll').innerHTML = ghtml || '<div class="empty-state" style="color:#fff;">Aucune image</div>';
+}
+
+function renderCharts() {
+  if (!window.Chart) return;
+  // Détruire les charts existants pour éviter l'erreur "canvas already in use"
+  ['monthChart','statusChart'].forEach(id => {
+    const existing = Chart.getChart(id);
+    if (existing) existing.destroy();
+  });
+  const months = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'];
+  const data   = months.map((m,i) => commandes.filter(c => new Date(c.createdAt || Date.now()).getMonth() === i).length);
+  new Chart(document.getElementById('monthChart'), {
+    type:'bar',
+    data:{labels:months,datasets:[{label:'Commandes',data:data,backgroundColor:'#8B4513'}]},
+    options:{responsive:true,plugins:{legend:{display:false}}}
+  });
+  const sc = {attente:0,cours:0,pret:0,livre:0};
+  commandes.forEach(c => { if(sc[c.statut]!==undefined) sc[c.statut]++; });
+  new Chart(document.getElementById('statusChart'), {
+    type:'pie',
+    data:{
+      labels:['Attente','En cours','Prêt','Livré'],
+      datasets:[{data:[sc.attente,sc.cours,sc.pret,sc.livre],backgroundColor:['#FFC107','#17A2B8','#28A745','#6C757D']}]
+    }
+  });
+  // Top clients
+  const clientCount = {};
+  commandes.forEach(c => { clientCount[c.client] = (clientCount[c.client]||0) + 1; });
+  const topClients  = Object.entries(clientCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById('top-clients').innerHTML = topClients.map(([n,v]) =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span>${n}</span><strong>${v} cmd</strong></div>`).join('') || '<p style="color:var(--gray)">Pas encore de données</p>';
+  // Top articles
+  const artCount = {};
+  commandes.forEach(c => { artCount[c.article] = (artCount[c.article]||0) + 1; });
+  const topArt = Object.entries(artCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById('top-articles').innerHTML = topArt.map(([n,v]) =>
+    `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+      <span>${n}</span><strong>${v}x</strong></div>`).join('') || '<p style="color:var(--gray)">Pas encore de données</p>';
+}
+
+// ============================================================
+// SAUVEGARDES — Firestore en premier, localStorage en cache
+// ============================================================
+
+async function saveCommande() {
+  const client = document.getElementById('cmd-client').value || document.getElementById('cmd-nouveau-client').value;
+  if (!client) { showToast('⚠️ Client requis'); return; }
+  const cmd = {
+    id:        Date.now(),
+    client:    client,
+    tel:       document.getElementById('cmd-nouveau-tel').value,
+    article:   document.getElementById('cmd-article').value,
+    prix:      parseInt(document.getElementById('cmd-prix').value) || 0,
+    acompte:   parseInt(document.getElementById('cmd-acompte').value) || 0,
+    date:      document.getElementById('cmd-date').value,
+    notes:     document.getElementById('cmd-notes').value,
+    statut:    'attente',
+    createdAt: new Date().toISOString()
+  };
+  commandes.unshift(cmd);
+  closeModals();
+  try {
+    await saveToFirestore('ben_couture_commandes', commandes);
+    showToast('✅ Commande ajoutée !');
+  } catch (e) {
+    commandes.shift(); // rollback
+    showToast('❌ Erreur: ' + e.message);
+  }
+}
+
+async function saveClient() {
+  const sexe = document.getElementById('cli-sexe').value;
+  const nom  = (document.getElementById('cli-prenom').value + ' ' + document.getElementById('cli-nom').value).trim();
+  if (!nom) { showToast('⚠️ Nom requis'); return; }
+  let mesures = {};
+  if (sexe === 'femme') {
+    mesures = {
+      epaule:      document.getElementById('fem-epaule').value,
+      poitrine:    document.getElementById('fem-poitrine').value,
+      taille:      document.getElementById('fem-taille').value,
+      longSoutien: document.getElementById('fem-long-soutien').value,
+      longHaut:    document.getElementById('fem-long-haut').value,
+      ceinture:    document.getElementById('fem-ceinture').value,
+      bassin:      document.getElementById('fem-bassin').value,
+      longJupe:    document.getElementById('fem-long-jupe').value,
+      longRobe:    document.getElementById('fem-long-robe').value,
+      longManche:  document.getElementById('fem-long-manche').value,
+      tourManche:  document.getElementById('fem-tour-manche').value
+    };
+  } else {
+    mesures = {
+      epaule:      document.getElementById('hom-epaule').value,
+      poitrine:    document.getElementById('hom-poitrine').value,
+      longChemise: document.getElementById('hom-long-chemise').value,
+      longManche:  document.getElementById('hom-long-manche').value,
+      tourMache:   document.getElementById('hom-tour-mache').value,
+      ceinture:    document.getElementById('hom-ceinture').value,
+      bassin:      document.getElementById('hom-bassin').value,
+      cuisse:      document.getElementById('hom-cuisse').value,
+      longPantalon:document.getElementById('hom-long-pantalon').value,
+      bas:         document.getElementById('hom-bas').value
+    };
+  }
+  const client = { id: Date.now(), nom, tel: document.getElementById('cli-tel').value, sexe, mesures };
+  clients.push(client);
+  closeModals();
+  try {
+    await saveToFirestore('ben_couture_clients', clients);
+    showToast('✅ Client ajouté !');
+  } catch (e) {
+    clients.pop();
+    showToast('❌ Erreur: ' + e.message);
+  }
+}
+
+async function saveStock() {
+  const nom = document.getElementById('stk-nom').value;
+  if (!nom) { showToast('⚠️ Nom requis'); return; }
+  const item = {
+    id:    Date.now(),
+    nom:   nom,
+    qty:   parseFloat(document.getElementById('stk-qty').value) || 0,
+    unit:  document.getElementById('stk-unit').value,
+    seuil: parseFloat(document.getElementById('stk-seuil').value) || 1
+  };
+  stock.push(item);
+  closeModals();
+  try {
+    await saveToFirestore('ben_couture_stock', stock);
+    showToast('✅ Stock mis à jour !');
+  } catch (e) {
+    stock.pop();
+    showToast('❌ Erreur: ' + e.message);
+  }
+}
+
+// FIX PRINCIPAL : saveMedia sauvegarde directement dans Firestore
+// Les URLs MP3/MP4/images sont maintenant persistées et visibles sur tous les appareils
+async function saveMedia() {
+  const type  = document.getElementById('media-type').value;
+  const url   = document.getElementById('media-url').value.trim();
+  const title = document.getElementById('media-title').value.trim();
+  if (!url) { showToast('⚠️ URL requise'); return; }
+
+  const item = { id: Date.now(), type, url, title };
+
+  if (type === 'video') {
+    videos.push(item);
+    closeModals();
+    try {
+      await saveToFirestore('ben_couture_videos', videos);
+      showToast('✅ Vidéo ajoutée !');
+    } catch (e) {
+      videos.pop();
+      showToast('❌ Erreur: ' + e.message);
+    }
+  } else {
+    gallery.push(item);
+    closeModals();
+    try {
+      await saveToFirestore('ben_couture_gallery', gallery);
+      showToast('✅ Image ajoutée !');
+    } catch (e) {
+      gallery.pop();
+      showToast('❌ Erreur: ' + e.message);
+    }
+  }
+}
+
+async function changerStatut(id) {
+  const cmd = commandes.find(c => c.id === id);
+  if (!cmd) return;
+  const etats     = { attente:'cours', cours:'pret', pret:'livre', livre:'livre' };
+  const oldStatut = cmd.statut;
+  cmd.statut      = etats[cmd.statut];
+  try {
+    await saveToFirestore('ben_couture_commandes', commandes);
+    showToast('✅ Statut → ' + cmd.statut);
+  } catch (e) {
+    cmd.statut = oldStatut; // rollback
+    showToast('❌ Erreur: ' + e.message);
+  }
+}
+
+// ============================================================
+// MUSIQUE — URL persistée dans Firestore pour tous les appareils
+// ============================================================
+
+async function playMusic() {
+  const url = document.getElementById('music-url').value.trim();
+  if (!url) { showToast('⚠️ Entrez une URL MP3'); return; }
+  if (audioPlayer) audioPlayer.pause();
+  audioPlayer = new Audio(url);
+  audioPlayer.loop = true;
+  audioPlayer.play().catch(e => showToast('❌ Lecture impossible: ' + e.message));
+  // FIX : sauvegarder l'URL dans Firestore → restaurée sur tous les appareils
+  try {
+    await db.collection('ben_couture_settings').doc('music').set({ url, date: new Date().toISOString() });
+  } catch(e) { console.error('Erreur save music:', e); }
+  showToast('🎵 Musique en fond');
+}
+
+function stopMusic() {
+  if (audioPlayer) { audioPlayer.pause(); audioPlayer = null; showToast('⏹️ Musique arrêtée'); }
+}
+
+// ============================================================
+// NAVIGATION & UI
+// ============================================================
+
+function showSection(name) {
+  if (isFullScreen) exitFullScreenTV();
+  currentSection = name;
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(`section-${name}`).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  if (event && event.currentTarget) event.currentTarget.classList.add('active');
+  const fab = document.getElementById('fab-btn');
+  fab.style.display = (name === 'commandes' || name === 'clients' || name === 'stock') ? 'flex' : 'none';
+  if (name === 'tv')    renderTV();
+  if (name === 'stats') ensureChartJs(renderCharts);
+}
+
+function onFabClick() {
+  if (currentSection === 'commandes') openModalCommande();
+  else if (currentSection === 'clients') openModalClient();
+  else if (currentSection === 'stock') openModalStock();
+}
+
+function filterCommandes(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  renderCommandes();
+}
+
+function toggleMesures() {
+  const sexe = document.getElementById('cli-sexe').value;
+  document.getElementById('mesures-femme').style.display = sexe === 'femme' ? 'block' : 'none';
+  document.getElementById('mesures-homme').style.display = sexe === 'homme' ? 'block' : 'none';
+}
+
+function openModalCommande() {
+  const select = document.getElementById('cmd-client');
+  select.innerHTML = '<option value="">-- Choisir client --</option>' + clients.map(c => `<option>${c.nom}</option>`).join('');
+  document.getElementById('modal-commande').classList.add('open');
+}
+function openModalClient()  { document.getElementById('modal-client').classList.add('open');  toggleMesures(); }
+function openModalStock()   { document.getElementById('modal-stock').classList.add('open');   }
+function openModalMedia()   { document.getElementById('modal-media').classList.add('open');   }
+function closeModals()      { document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open')); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function openZoom(url)    { window.open(url, '_blank'); }
+function toggleDarkMode() { document.body.classList.toggle('dark'); localStorage.setItem('darkMode', document.body.classList.contains('dark')); }
+
+function envoyerWhatsApp(id) {
+  const cmd = commandes.find(c => c.id === id);
+  if (!cmd || !cmd.tel) { showToast('⚠️ Pas de numéro pour ce client'); return; }
+  const tel = cmd.tel.replace(/\s/g,'').replace('+','');
+  const msg = `Bonjour ${cmd.client}, votre commande "${cmd.article}" est ${cmd.statut==='pret'?'prête à être récupérée':cmd.statut==='cours'?'en cours de réalisation':'enregistrée'}. Livraison prévue le ${cmd.date}. Merci d'avoir fait confiance à BEN-COUTURE ✂️`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ── Auto-scroll galerie ──────────────────────────────────────
+function startAutoScroll() {
+  const c = document.getElementById('gallery-scroll');
+  stopAutoScroll();
+  autoScrollInterval = setInterval(() => {
+    c.scrollBy({ top: 500, behavior: 'smooth' });
+    if (c.scrollTop + c.clientHeight >= c.scrollHeight) c.scrollTop = 0;
+  }, 4000);
+  showToast('▶️ Auto-scroll activé');
+}
+function stopAutoScroll() {
+  if (autoScrollInterval) { clearInterval(autoScrollInterval); autoScrollInterval = null; }
+}
+
+// ── Plein écran TV ───────────────────────────────────────────
+function toggleFullScreenTV() {
+  const container = document.getElementById('appContainer');
+  const tvSection = document.getElementById('section-tv');
+  if (!isFullScreen) {
+    container.classList.add('fullscreen-mode');
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tvSection.classList.add('active');
+    const btn = document.createElement('button');
+    btn.id        = 'exitFullscreenBtn';
+    btn.className = 'exit-fullscreen-btn';
+    btn.innerHTML = '<i class="fas fa-compress"></i> Quitter';
+    btn.onclick   = exitFullScreenTV;
+    container.appendChild(btn);
+    isFullScreen = true;
+    if (autoScrollInterval) { stopAutoScroll(); startAutoScroll(); }
+    showToast('📺 Mode plein écran');
+  }
+}
+
+function exitFullScreenTV() {
+  const container = document.getElementById('appContainer');
+  const btn       = document.getElementById('exitFullscreenBtn');
+  container.classList.remove('fullscreen-mode');
+  if (btn) btn.remove();
+  isFullScreen = false;
+  showSection('tv');
+}
+
+// ── Export PDF ───────────────────────────────────────────────
+function exportPDF() {
+  ensureHtml2pdf(function() {
+    html2pdf().from(document.getElementById('section-dashboard'))
+      .set({ margin:1, filename:'ben-couture-rapport.pdf' }).save();
+    showToast('📄 PDF généré');
+  });
+}
+
+// ============================================================
+// DÉMARRAGE
+// ============================================================
+if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark');
+init();
+
+// ============================================================
+// PWA — Enregistrement du Service Worker
+// ============================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js', { scope: './' });
+      console.log('[PWA] Service Worker enregistré:', reg.scope);
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showToast("🔄 Mise à jour disponible — rechargez l'app");
+          }
+        });
+      });
+    } catch (err) {
+      console.warn('[PWA] Erreur Service Worker:', err);
+    }
+  });
+}
+
+// ============================================================
+// PWA — Bouton d'installation personnalisé
+// ============================================================
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  setTimeout(() => {
+    showToast("📲 Installer Ben-Couture sur votre écran d'accueil ?");
+    if (!document.getElementById('install-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'install-btn';
+      btn.innerHTML = '<i class="fas fa-download"></i>';
+      btn.title = "Installer l'application";
+      btn.style.cssText = [
+        'position:fixed','bottom:90px','right:80px',
+        'width:48px','height:48px','border-radius:50%',
+        'background:#D4A843','color:white','border:none',
+        'font-size:18px','cursor:pointer','z-index:200',
+        'display:flex','align-items:center','justify-content:center',
+        'box-shadow:0 4px 15px rgba(212,168,67,0.5)'
+      ].join(';');
+      btn.addEventListener('click', async () => {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showToast('✅ Ben-Couture installé !');
+          btn.remove();
+        }
+        deferredInstallPrompt = null;
+      });
+      document.body.appendChild(btn);
+    }
+  }, 3000);
+});
+
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('install-btn');
+  if (btn) btn.remove();
+  deferredInstallPrompt = null;
+  showToast('🎉 Ben-Couture installé avec succès !');
+});
+</script>
+</body>
+</html>
